@@ -1,93 +1,95 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 public class GameBoard extends JPanel {
-    private BufferedImage backgroundImage;
-    private final int ROWS = 8;
-    private final int COLS = 8;
-
-    // --- PHẦN ĐIỀU CHỈNH CẤU TRÌNH ---
-    private final double SCALE = 0.65;      // Tỉ lệ toàn bộ board
-    private final int CELL_SIZE = 61;       // Kích thước chuẩn của 1 ô ảnh
-    private final int GAP = 20;              // <--- KHOẢNG CÁCH GIỮA CÁC Ô (Chỉnh ở đây)
-    
-    private final int START_X = 83;         // Tọa độ X của ô đầu tiên
-    private final int START_Y = 220;        // Tọa độ Y của ô đầu tiên
-    // ---------------------------------
-
-    private Map<String, BufferedImage> cellLayer = new HashMap<>();
+    private final int ROWS = 8, COLS = 8, CELL_SIZE = 61, GAP = 20, START_X = 83, START_Y = 220;
+    private final double SCALE = 0.65;
+    private BufferedImage bg, bomb, flag, win, fail, nums[] = new BufferedImage[9];
+    private Cell[][] grid = new Cell[ROWS][COLS];
+    private GameSession session = new GameSession();
 
     public GameBoard() {
-        try {
-            backgroundImage = ImageIO.read(getClass().getResourceAsStream("/resources/boardgame_integrated.png"));
-            int w = (int) (backgroundImage.getWidth() * SCALE);
-            int h = (int) (backgroundImage.getHeight() * SCALE);
-            setPreferredSize(new Dimension(w, h));
-        } catch (IOException e) {
-            System.err.println("Resource error: " + e.getMessage());
-        }
-    }
-
-    public void setCell(char row, int col, BufferedImage img) {
-        int r = Character.toLowerCase(row) - 'a';
-        int c = col - 1;
-        if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-            cellLayer.put(r + "_" + c, img);
-            repaint();
-        }
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        Graphics2D g2d = (Graphics2D) g;
-
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        g2d.scale(SCALE, SCALE);
-
-        if (backgroundImage != null) {
-            g2d.drawImage(backgroundImage, 0, 0, null);
-        }
-
-        drawLabels(g2d);
-
-        // Vẽ các icon (num1, num2...) với khoảng cách GAP
-        for (int r = 0; r < ROWS; r++) {
-            for (int c = 0; c < COLS; c++) {
-                BufferedImage img = cellLayer.get(r + "_" + c);
-                if (img != null) {
-                    // Công thức có tính đến GAP
-                    int drawX = START_X + (c * (CELL_SIZE + GAP));
-                    int drawY = START_Y + (r * (CELL_SIZE + GAP));
-                    
-                    g2d.drawImage(img, drawX, drawY, CELL_SIZE, CELL_SIZE, null);
-                }
+        for (int r = 0; r < ROWS; r++) for (int c = 0; c < COLS; c++) grid[r][c] = new Cell();
+        loadRes();
+        if (bg != null) setPreferredSize(new Dimension((int)(bg.getWidth()*SCALE), (int)(bg.getHeight()*SCALE)));
+        new Timer(500, e -> repaint()).start();
+        addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                if (session.isGameOver()) return;
+                int c = (int)((e.getX()/SCALE - START_X) / (CELL_SIZE + GAP)), r = (int)((e.getY()/SCALE - START_Y) / (CELL_SIZE + GAP));
+                if (r >= 0 && r < ROWS && c >= 0 && c < COLS) handle(r, c, SwingUtilities.isLeftMouseButton(e));
             }
+        });
+    }
+
+    private void handle(int r, int c, boolean isL) {
+        Cell cell = grid[r][c];
+        if (isL && !cell.isFlagged() && !cell.isRevealed()) {
+            cell.setRevealed(true);
+            if (cell.getValue() != null && cell.getValue() == -1) session.setGameOver(true);
+        } else if (!isL && !cell.isRevealed()) {
+            cell.setFlagged(!cell.isFlagged());
+            checkWin();
+        }
+        session.addMove(); repaint();
+    }
+
+    private void checkWin() {
+        int m = 0, f = 0, ok = 0;
+        for (Cell[] row : grid) for (Cell cl : row) {
+            boolean isM = cl.getValue() != null && cl.getValue() == -1;
+            if (isM) m++;
+            if (cl.isFlagged()) { f++; if (isM) ok++; }
+        }
+        if (f == m && ok == m) { session.setGameOver(true); session.setWon(true); }
+    }
+
+    private void loadRes() {
+        try {
+            bg = img("boardgame_integrated.png"); bomb = img("Boom.png"); flag = img("Flat.png");
+            win = img("won.png"); fail = img("fail.png");
+            for (int i = 1; i <= 8; i++) nums[i] = img("num" + i + ".png");
+        } catch (Exception e) {}
+    }
+
+    private BufferedImage img(String n) {
+        try { return ImageIO.read(getClass().getResource("/resources/" + n)); } catch (Exception e) { return null; }
+    }
+
+    public void setCellValue(char r, int c, Integer v) { grid[Character.toLowerCase(r)-'a'][c-1].setValue(v); }
+
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g); Graphics2D g2 = (Graphics2D) g; g2.scale(SCALE, SCALE);
+        if (bg != null) g2.drawImage(bg, 0, 0, null);
+        drawHUD(g2);
+        for (int r = 0; r < ROWS; r++) for (int c = 0; c < COLS; c++) drawCell(g2, r, c);
+        if (session.isGameOver()) {
+            BufferedImage res = session.isWon() ? win : fail;
+            if (res != null) g2.drawImage(res, (bg.getWidth()-res.getWidth())/2, (bg.getHeight()-res.getHeight())/2, null);
         }
     }
 
-    private void drawLabels(Graphics2D g2d) {
-        g2d.setColor(new Color(0, 255, 255)); 
-        g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
+    private void drawCell(Graphics2D g2, int r, int c) {
+        int x = START_X + c*(CELL_SIZE+GAP), y = START_Y + r*(CELL_SIZE+GAP); Cell cl = grid[r][c];
+        if (cl.isRevealed()) {
+            Integer v = cl.getValue();
+            if (v == null) { g2.setColor(new Color(255,255,255,50)); g2.fillRect(x,y,CELL_SIZE,CELL_SIZE); }
+            else if (v == -1) g2.drawImage(bomb, x, y, CELL_SIZE, CELL_SIZE, null);
+            else g2.drawImage(nums[v], x, y, CELL_SIZE, CELL_SIZE, null);
+        } else if (cl.isFlagged()) g2.drawImage(flag, x, y, CELL_SIZE, CELL_SIZE, null);
+    }
 
+    private void drawHUD(Graphics2D g2) {
+        g2.setColor(Color.CYAN); g2.setFont(new Font("Monospaced", 1, 18));
         for (int i = 0; i < 8; i++) {
-            // Tọa độ tính toán dựa trên (CELL_SIZE + GAP) để luôn khớp với ô
-            int offsetPos = i * (CELL_SIZE + GAP);
-
-            // Vẽ chữ cái a-h (Cột bên trái)
-            // +40 là để đẩy chữ xuống giữa ô theo chiều dọc
-            g2d.drawString(String.valueOf((char)('a' + i)), START_X - 35, START_Y + offsetPos + 40);
-            
-            // Vẽ số 1-8 (Hàng bên trên)
-            // +25 là để đẩy chữ vào giữa ô theo chiều ngang
-            g2d.drawString(String.valueOf(i + 1), START_X + offsetPos + 25, START_Y - 20);
+            g2.drawString(""+(char)('a'+i), START_X-35, START_Y+i*(CELL_SIZE+GAP)+40);
+            g2.drawString(""+(i+1), START_X+i*(CELL_SIZE+GAP)+25, START_Y-20);
         }
+        g2.setFont(new Font("Monospaced", 1, 22));
+        g2.drawString("TIME: "+session.getTimeString() + "  MOVES: "+session.getMoves(), START_X, START_Y-70);
+        g2.drawString("SCORE: "+session.calculateScore(), START_X, START_Y-40);
     }
 }

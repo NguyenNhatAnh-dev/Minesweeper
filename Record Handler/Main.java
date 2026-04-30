@@ -1,37 +1,22 @@
 import javax.swing.JFrame;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 
 public class Main {
     public static void main(String[] args) {
-    JFrame frame = new JFrame("Deep Sea Mines");
-    GameBoard board = new GameBoard();
-    frame.add(board);
-    frame.pack();
-    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    frame.setLocationRelativeTo(null);
-    frame.setVisible(true);
+        JFrame frame = new JFrame("Deep Sea Mines");
+        GameBoard board = new GameBoard();
 
-    try {
-        // Load your icon
-        BufferedImage n1 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num1.png"));
-        BufferedImage n2 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num2.png"));
-        BufferedImage n3 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num3.png"));
-        BufferedImage n4 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num4.png"));
-        BufferedImage n5 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num5.png"));
-        BufferedImage n6 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num6.png"));
-        BufferedImage n7 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num7.png"));
-        BufferedImage n8 = ImageIO.read(board.getClass().getResourceAsStream("/resources/num8.png"));
-        BufferedImage boom = ImageIO.read(board.getClass().getResourceAsStream("/resources/Boom.png"));
+        // THIẾT LẬP DỮ LIỆU TEST
+        board.setCellValue('a', 1, 1);
+        board.setCellValue('b', 2, -1); // Bom ở b2
+        board.setCellValue('h', 8, -1); // Bom ở h8
         
-        // TEST CORNERS: If these 4 are right, the whole board is right.
-        board.setCell('a', 1, n1); // Top Left
-        board.setCell('a', 8, n5); // Top Right
-        board.setCell('h', 1, n8); // Bottom Left
-        board.setCell('h', 8, boom); // Bottom Right
-        
-    } catch (Exception e) {
-        e.printStackTrace();
+        // Bạn có thể thêm các ô số xung quanh bom ở đây
+        // Hoặc viết thêm hàm generateMap tự động như mình đã gợi ý ở trên.
+
+        frame.add(board);
+        frame.pack();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
     }
-}
 }
