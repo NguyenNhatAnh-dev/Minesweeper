@@ -1,0 +1,8 @@
+out/
+*.class
+minesweeper_save.txt
+minesweeper_records.txt
+.vscode/
+.DS_Store
+.idea/
+*.iml
