@@ -99,7 +99,7 @@ Graph Lectures — BFS / DFS
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/MinesweeperDSA.git
+git clone https://github.com/NguyenNhatAnh-dev/Minesweeper
 cd MinesweeperDSA
 
 # 2. Compile
